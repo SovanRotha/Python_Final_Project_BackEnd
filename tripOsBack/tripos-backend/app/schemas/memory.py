@@ -1,0 +1,1 @@
+from app.schemas.common import ResourceCreate as MemoryCreate, ResourceRead as MemoryRead

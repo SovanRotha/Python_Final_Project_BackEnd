@@ -1,0 +1,11 @@
+.env.local
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.db
+.pytest_cache/
+.coverage
+uploads/**
+!uploads/**/.gitkeep
+.env

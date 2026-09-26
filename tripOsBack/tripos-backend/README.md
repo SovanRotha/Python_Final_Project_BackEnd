@@ -60,7 +60,7 @@ CREATE USER tripos_user WITH PASSWORD 'choose-a-local-password';
 CREATE DATABASE tripos_db OWNER tripos_user;
 ```
 
-Edit `.env` and set values appropriate for your machine:
+Copy `.env.example` to `.env` if `.env` is missing, then set values appropriate for your machine:
 
 ```dotenv
 APP_NAME=TripOS API
@@ -70,7 +70,14 @@ JWT_SECRET_KEY=replace-with-a-long-random-secret
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
 
-If a password contains reserved URL characters, percent-encode them in `DATABASE_URL`. Keep real credentials and production secrets out of source control. The checked-in/default values are placeholders, not production credentials.
+The repository ignores `.env` so local credentials are not committed. If you want to create the database user with the sample credentials, run the SQL below in `psql`; otherwise use the username and password already configured in PostgreSQL:
+
+```sql
+CREATE USER tripos_user WITH PASSWORD 'change-me';
+CREATE DATABASE tripos_db OWNER tripos_user;
+```
+
+If a password contains reserved URL characters, percent-encode them in `DATABASE_URL`. Replace the example JWT secret before deployment. Do not commit real credentials or production secrets.
 
 ## Database migrations
 

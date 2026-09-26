@@ -2,9 +2,11 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
+    name: str = Field(default="", max_length=200)
     email: EmailStr
     password: str = Field(min_length=8)
-    full_name: str = Field(default="", max_length=200)
+    profile: str | None = None
+
 
 
 class UserLogin(BaseModel):
@@ -15,7 +17,7 @@ class UserLogin(BaseModel):
 class UserRead(BaseModel):
     id: int
     email: EmailStr
-    full_name: str
+    name: str
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)

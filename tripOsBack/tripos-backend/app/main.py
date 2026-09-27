@@ -1,28 +1,36 @@
 from fastapi import FastAPI
 
-from app.routes import (
-    accommodations,
-    admin,
-    ai,
-    auth,
-    budgets,
-    checklists,
-    destinations,
-    documents,
-    expenses,
-    itinerary,
-    memories,
-    notifications,
-    packing,
-    places,
-    reminders,
-    saved_places,
-    screenshots,
-    transports,
-    trips,
-    users,
-    wallet,
-)
+from app.routes.accommodation import accommodations
+from app.routes.admin import admin
+from app.routes.ai import ai
+from app.routes.ai import ai_conversations, ai_extractions, ai_messages
+from app.routes.auth import auth
+from app.routes.budget import budgets
+from app.routes.budget import budget_categories
+from app.routes.checklist import checklists
+from app.routes.checklist import checklist_items
+from app.routes.destination import destinations
+from app.routes.document import documents
+from app.routes.expense import expenses
+from app.routes.expense import expense_splits
+from app.routes.itinerary import itinerary
+from app.routes.itinerary import itinerary_days, itinerary_items
+from app.routes.memory import memories
+from app.routes.memory import memory_photos
+from app.routes.notification import notifications
+from app.routes.packing import packing
+from app.routes.packing import packing_lists
+from app.routes.place import places
+from app.routes.place import place_photos, place_tips
+from app.routes.reminder import reminders
+from app.routes.saved_place import saved_places
+from app.routes.screenshot import screenshots
+from app.routes.transport import transports
+from app.routes.trip import trips
+from app.routes.trip import trip_members, trip_wallets
+from app.routes.user import users
+from app.routes.wallet import wallet
+from app.routes.wallet import wallet_transactions
 from app.core.config import settings
 
 
@@ -49,6 +57,21 @@ for route_module in (
     notifications,
     memories,
     ai,
+    ai_conversations,
+    ai_extractions,
+    ai_messages,
+    budget_categories,
+    checklist_items,
+    expense_splits,
+    itinerary_days,
+    itinerary_items,
+    memory_photos,
+    packing_lists,
+    place_photos,
+    place_tips,
+    trip_members,
+    trip_wallets,
+    wallet_transactions,
     admin,
 ):
     app.include_router(route_module.router)

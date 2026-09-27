@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.models.wallet import Wallet
+from app.models.wallet.wallet import Wallet
 
 
 def list_user_wallets(db: Session, user_id: int) -> list[Wallet]:

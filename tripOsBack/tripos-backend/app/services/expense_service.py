@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.models.expense import Expense
+from app.models.expense.expense import Expense
 
 
 def list_user_expenses(db: Session, user_id: int) -> list[Expense]:

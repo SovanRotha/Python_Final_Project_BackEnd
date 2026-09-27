@@ -26,6 +26,6 @@ def get_current_user(
     except (InvalidTokenError, KeyError, TypeError, ValueError):
         raise unauthorized
     user = db.get(User, user_id)
-    if user is None or not user.is_active:
+    if user is None or not user.status:
         raise unauthorized
     return user

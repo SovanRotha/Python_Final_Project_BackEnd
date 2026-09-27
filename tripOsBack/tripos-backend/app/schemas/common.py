@@ -1,7 +1,7 @@
 from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
-
+from decimal import Decimal
 
 class ResourceCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
@@ -10,8 +10,8 @@ class ResourceCreate(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     status: str | None = None
-    amount: float | None = Field(default=None, ge=0)
-    balance: float | None = Field(default=None, ge=0)
+    amount: Decimal | None = Field(default=None, ge=0)
+    balance: Decimal | None = Field(default=None, ge=0)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     category: str | None = None
     spent_on: date | None = None

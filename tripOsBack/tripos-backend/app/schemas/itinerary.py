@@ -1,1 +1,0 @@
-from app.schemas.common import ResourceCreate as ItineraryCreate, ResourceRead as ItineraryRead

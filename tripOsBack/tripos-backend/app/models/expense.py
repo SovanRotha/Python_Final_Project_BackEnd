@@ -1,16 +1,91 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
-from sqlalchemy import Date, Float, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Numeric,
+    String,
+)
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
-from app.models.base import ResourceMixin
 
 
-class Expense(ResourceMixin, Base):
+class Expense(Base):
     __tablename__ = "expenses"
 
-    amount: Mapped[float] = mapped_column(Float, default=0)
-    currency: Mapped[str] = mapped_column(String(3), default="USD")
-    category: Mapped[str] = mapped_column(String(80), default="other")
-    spent_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    id = Column(
+        BigInteger,
+        primary_key=True,
+        index=True
+    )
+
+    trip_id = Column(
+        BigInteger,
+        ForeignKey("trips.id"),
+        nullable=False,
+        index=True
+    )
+
+    user_id = Column(
+        BigInteger,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True
+    )
+
+    budget_category_id = Column(
+        BigInteger,
+        ForeignKey("budget_categories.id"),
+        nullable=False,
+        index=True
+    )
+
+    description = Column(
+        String(255),
+        nullable=False
+    )
+
+    amount = Column(
+        Numeric(12, 2),
+        nullable=False
+    )
+
+    currency = Column(
+        String(10),
+        nullable=False
+    )
+
+    expense_date = Column(
+        Date,
+        nullable=False
+    )
+
+    payment_method = Column(
+        String(100),
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    trip = relationship(
+        "Trip",
+        back_populates="expenses"
+    )
+
+    user = relationship(
+        "User",
+        back_populates="expenses"
+    )
+
+    budget_category = relationship(
+        "BudgetCategory",
+        back_populates="expenses"
+    )

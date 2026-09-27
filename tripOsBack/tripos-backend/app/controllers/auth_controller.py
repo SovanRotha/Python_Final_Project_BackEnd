@@ -16,7 +16,8 @@ class AuthController:
             raise HTTPException(status_code=409, detail="Email is already registered")
         user = User(
             email=email,
-            full_name=payload.full_name,
+            name=payload.name,
+            profile=payload.profile,
             hashed_password=hash_password(payload.password),
         )
         self.db.add(user)

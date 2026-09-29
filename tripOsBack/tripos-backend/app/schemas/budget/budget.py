@@ -16,10 +16,10 @@ class BudgetCreate(BaseModel):
     #     ge=0
     # )
 
-    spent_amount: Decimal = Field(
-        default=Decimal("0"),
-        ge=0
-    )
+    # spent_amount: Decimal = Field(
+    #     default=Decimal("0"),
+    #     ge=0
+    # )
 
     currency: str = Field(
         min_length=3,

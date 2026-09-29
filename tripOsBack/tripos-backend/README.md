@@ -132,6 +132,20 @@ By default, the service listens on `http://127.0.0.1:8000`.
 
 To use another port: `python -m uvicorn app.main:app --reload --port 8001`.
 
+## Run with Docker
+
+Docker Compose runs the API and PostgreSQL with pinned image versions. The API installs the exact package versions in `requirements.lock`, waits for PostgreSQL, and applies Alembic migrations before starting. PostgreSQL data persists in the `postgres_data` volume.
+
+Start the stack from the project directory:
+
+```powershell
+docker compose up --build
+```
+
+Open `http://localhost:8000/docs` for the API. To stop the containers while keeping the database, press `Ctrl+C` and run `docker compose down`. To also delete the stored database, run `docker compose down --volumes`.
+
+Both developers should use the same committed `Dockerfile`, `compose.yaml`, and `requirements.lock`. To change the dependency set, update the lock file and commit it along with the code changes. The Compose defaults are for local development only; set `POSTGRES_PASSWORD` and `JWT_SECRET_KEY` through a local `.env` file or environment variables before exposing the service beyond your machine.
+
 ## Authentication and API use
 
 Register an account using `POST /api/v1/auth/register` with `email`, `password` (at least 8 characters), and optional `full_name`. Then log in using `POST /api/v1/auth/login` with the email and password. The response contains an `access_token`.

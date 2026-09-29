@@ -26,12 +26,9 @@ class ReminderType(str, Enum):
 
 
 class ReminderStatus(str, Enum):
-    # Add your exact status values here later.
-    # Example:
-    # PENDING = "pending"
-    # COMPLETED = "completed"
-    # CANCELLED = "cancelled"
-    pass
+    PENDING = "pending"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
 
 
 class Reminder(Base):

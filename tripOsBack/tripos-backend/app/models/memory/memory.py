@@ -6,6 +6,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     Text,
 )
@@ -18,7 +19,7 @@ class Memory(Base):
     __tablename__ = "memories"
 
     id = Column(
-        BigInteger,
+        BigInteger().with_variant(Integer, "sqlite"),
         primary_key=True,
         index=True
     )

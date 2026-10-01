@@ -1,3 +1,4 @@
+from fastapi.encoders import jsonable_encoder
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -17,7 +18,22 @@ class ResourceController:
         return self.db.query(self.model).filter(self.model.user_id == self.user.id).all()
 
     def create(self, fields: dict):
-        resource = self.model(**fields, user_id=self.user.id)
+        values = dict(fields)
+        model_fields = set(self.model.__table__.columns.keys())
+        extra_fields = {
+            key: values.pop(key)
+            for key in tuple(values)
+            if key not in model_fields and key != "user_id"
+        }
+
+        if extra_fields:
+            values["data"] = {
+                **values.get("data", {}),
+                **jsonable_encoder(extra_fields),
+            }
+
+        values["user_id"] = self.user.id
+        resource = self.model(**values)
         self.db.add(resource)
         self.db.commit()
         self.db.refresh(resource)

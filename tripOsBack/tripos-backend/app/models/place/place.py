@@ -6,6 +6,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     Text,
@@ -26,7 +27,7 @@ class Place(Base):
     __tablename__ = "places"
 
     id = Column(
-        BigInteger,
+        BigInteger().with_variant(Integer, "sqlite"),
         primary_key=True,
         index=True
     )
@@ -122,6 +123,11 @@ class Place(Base):
         back_populates="places"
     )
 
+    users = relationship(
+        "User",
+        secondary="saved_places",
+        viewonly=True
+    )
     itinerary_items = relationship("ItineraryItem", back_populates="place")
     photos = relationship("PlacePhoto", back_populates="place")
     tips = relationship("PlaceTip", back_populates="place")

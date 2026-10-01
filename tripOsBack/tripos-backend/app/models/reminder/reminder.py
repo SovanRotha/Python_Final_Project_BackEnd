@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
+    Integer,
     String,
     Text,
 )
@@ -35,7 +36,7 @@ class Reminder(Base):
     __tablename__ = "reminders"
 
     id = Column(
-        BigInteger,
+        BigInteger().with_variant(Integer, "sqlite"),
         primary_key=True,
         index=True
     )
@@ -82,7 +83,8 @@ class Reminder(Base):
             ReminderStatus,
             name="reminder_status"
         ),
-        nullable=False
+        nullable=False,
+        default=ReminderStatus.PENDING
     )
 
     created_at = Column(

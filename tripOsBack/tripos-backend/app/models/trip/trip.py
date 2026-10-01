@@ -10,6 +10,7 @@ from sqlalchemy import (
     Enum as SQLEnum,
     ForeignKey,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -83,6 +84,12 @@ class Trip(Base):
     status = Column(
         SQLEnum(TripStatus, name="trip_status"),
         default=TripStatus.PLANNING,
+        nullable=False
+    )
+
+    data = Column(
+        JSON,
+        default=dict,
         nullable=False
     )
 

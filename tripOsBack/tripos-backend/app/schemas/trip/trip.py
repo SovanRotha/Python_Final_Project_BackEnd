@@ -1,7 +1,8 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.models.trip.trip import TripStatus
 
@@ -18,15 +19,26 @@ class TripCreate(BaseModel):
 
     budget_amount: Decimal | None = Field(
         default=None,
+        validation_alias=AliasChoices("budget_amount", "amount"),
         ge=0
     )
 
     status: TripStatus = TripStatus.PLANNING
+    data: dict[str, Any] = Field(default_factory=dict)
 
     cover_image: str | None = Field(
         default=None,
         max_length=500
     )
+
+    model_config = ConfigDict(extra="allow")
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_planned_status(cls, value: Any) -> Any:
+        if value == "planned":
+            return TripStatus.PLANNING
+        return value
 
 
 class TripUpdate(BaseModel):

@@ -5,7 +5,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class MemoryCreate(BaseModel):
     trip_id: int
-    user_id: int
 
     title: str = Field(
         min_length=1,
@@ -41,6 +40,7 @@ class MemoryUpdate(BaseModel):
 
 class MemoryRead(MemoryCreate):
     id: int
+    user_id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

@@ -6,6 +6,7 @@ from sqlalchemy import (
     Column,
     Date,
     ForeignKey,
+    Integer,
     String,
 )
 from sqlalchemy.orm import relationship
@@ -17,7 +18,7 @@ class ChecklistItem(Base):
     __tablename__ = "checklist_items"
 
     id = Column(
-        BigInteger,
+        BigInteger().with_variant(Integer, "sqlite"),
         primary_key=True,
         index=True
     )

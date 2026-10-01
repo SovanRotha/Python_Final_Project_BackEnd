@@ -8,6 +8,7 @@ from sqlalchemy import (
     Enum as SQLEnum,
     ForeignKey,
     JSON,
+    Integer,
     String,
 )
 from sqlalchemy.orm import relationship
@@ -31,7 +32,7 @@ class Screenshot(Base):
     __tablename__ = "screenshots"
 
     id = Column(
-        BigInteger,
+        BigInteger().with_variant(Integer, "sqlite"),
         primary_key=True,
         index=True
     )

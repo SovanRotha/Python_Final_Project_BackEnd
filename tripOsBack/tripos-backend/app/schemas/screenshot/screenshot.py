@@ -8,7 +8,6 @@ from app.models.screenshot.screenshot import ScreenshotType
 
 class ScreenshotCreate(BaseModel):
     trip_id: int
-    user_id: int
 
     title: str = Field(
         min_length=1,
@@ -45,6 +44,7 @@ class ScreenshotUpdate(BaseModel):
 
 class ScreenshotRead(ScreenshotCreate):
     id: int
+    user_id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

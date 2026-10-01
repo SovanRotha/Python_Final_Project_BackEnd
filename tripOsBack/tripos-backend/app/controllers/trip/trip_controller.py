@@ -9,6 +9,13 @@ class TripController(ScopedResourceController):
 
     def validate_create(self, fields: dict) -> None:
         self._validate_destination(fields.get("destination_id"))
+        model_fields = set(Trip.__table__.columns.keys())
+        extra_fields = {
+            key: fields.pop(key)
+            for key in list(fields)
+            if key not in model_fields
+        }
+        fields["data"] = {**fields.get("data", {}), **extra_fields}
 
     def validate_update(self, resource: Trip, fields: dict) -> None:
         if "destination_id" in fields:

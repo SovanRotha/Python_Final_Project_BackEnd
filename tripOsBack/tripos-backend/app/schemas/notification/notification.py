@@ -4,8 +4,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class NotificationCreate(BaseModel):
-    user_id: int
-
     trip_id: int | None = None
     reminder_id: int | None = None
 
@@ -49,6 +47,7 @@ class NotificationUpdate(BaseModel):
 
 class NotificationRead(NotificationCreate):
     id: int
+    user_id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,11 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class DocumentCreate(BaseModel):
     trip_id: int
-    user_id: int
 
     name: str = Field(
         min_length=1,
@@ -22,7 +21,7 @@ class DocumentCreate(BaseModel):
         max_length=500
     )
 
-    expires_at: datetime | None = None
+    expires_at: date | None = None
 
 
 class DocumentUpdate(BaseModel):
@@ -44,11 +43,12 @@ class DocumentUpdate(BaseModel):
         max_length=500
     )
 
-    expires_at: datetime | None = None
+    expires_at: date | None = None
 
 
 class DocumentRead(DocumentCreate):
     id: int
+    user_id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

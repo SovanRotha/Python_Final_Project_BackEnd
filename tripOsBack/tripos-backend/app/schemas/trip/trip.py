@@ -2,7 +2,14 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+)
 
 from app.models.trip.trip import TripStatus
 
@@ -25,11 +32,6 @@ class TripCreate(BaseModel):
 
     status: TripStatus = TripStatus.PLANNING
     data: dict[str, Any] = Field(default_factory=dict)
-
-    cover_image: str | None = Field(
-        default=None,
-        max_length=500
-    )
 
     model_config = ConfigDict(extra="allow")
 
@@ -68,11 +70,6 @@ class TripUpdate(BaseModel):
 
     status: TripStatus | None = None
 
-    cover_image: str | None = Field(
-        default=None,
-        max_length=500
-    )
-
 
 class TripRead(TripCreate):
     id: int
@@ -81,4 +78,12 @@ class TripRead(TripCreate):
     created_at: datetime
     updated_at: datetime
 
+    cover_image: str | None = None
+
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("cover_image")
+    def serialize_cover_image(self, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return f"/api/v1/trips/{self.id}/cover-image"

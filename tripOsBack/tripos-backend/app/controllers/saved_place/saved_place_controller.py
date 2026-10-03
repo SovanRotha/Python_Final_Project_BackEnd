@@ -1,7 +1,6 @@
 from fastapi import HTTPException
 
 from app.controllers.common.scoped_resource_controller import ScopedResourceController
-from app.models.destination.destination import Destination
 from app.models.place.place import Place
 from app.models.saved_place.saved_place import SavedPlace
 
@@ -11,10 +10,7 @@ class SavedPlaceController(ScopedResourceController):
     resource_name = "Saved place"
 
     def validate_create(self, fields: dict) -> None:
-        place = self.db.query(Place).filter(
-            Place.id == fields["place_id"],
-            Place.destination.has(Destination.user_id == self.user.id),
-        ).first()
+        place = self.db.query(Place).filter(Place.id == fields["place_id"]).first()
         if place is None:
             raise HTTPException(status_code=404, detail="Place not found")
 

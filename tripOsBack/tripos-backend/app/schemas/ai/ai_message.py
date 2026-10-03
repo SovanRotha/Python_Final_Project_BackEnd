@@ -26,3 +26,12 @@ class AIMessageRead(AIMessageCreate):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AIChatSendRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=10000)
+
+
+class AIChatSendResponse(BaseModel):
+    user_message: AIMessageRead
+    assistant_message: AIMessageRead

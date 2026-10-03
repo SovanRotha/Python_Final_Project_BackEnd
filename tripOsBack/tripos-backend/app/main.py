@@ -1,8 +1,9 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.accommodation import accommodations
 from app.routes.admin import admin
-from app.routes.ai import ai
+from app.routes.ai import ai, ai_chat
 from app.routes.ai import ai_conversations, ai_extractions, ai_messages
 from app.routes.auth import auth
 from app.routes.budget import budgets
@@ -35,6 +36,13 @@ from app.core.config import settings
 
 
 app = FastAPI(title=settings.APP_NAME)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 for route_module in (
     auth,
@@ -58,6 +66,7 @@ for route_module in (
     memories,
     ai,
     ai_conversations,
+    ai_chat,
     ai_extractions,
     ai_messages,
     budget_categories,

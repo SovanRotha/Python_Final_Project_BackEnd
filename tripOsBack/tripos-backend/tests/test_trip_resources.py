@@ -87,3 +87,4 @@ def test_create_notification_uses_notification_fields(client, auth_headers):
     assert response.status_code == 201
     assert response.json()["user_id"]
     assert response.json()["is_read"] is False
+

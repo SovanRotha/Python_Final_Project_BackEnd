@@ -1,3 +1,5 @@
+from fastapi import HTTPException
+
 from app.controllers.common.scoped_resource_controller import ScopedResourceController
 from app.models.ai.ai_conversation import AIConversation
 from app.models.ai.ai_message import AIMessage
@@ -22,12 +24,13 @@ class AIMessageController(ScopedResourceController):
             ),
             "AI conversation",
         )
+
     def send_message(
         self,
         conversation_id: int,
         message: str,
     ):
-        self.require_owned(
+        conversation = self.require_owned(
             self.db.query(AIConversation).filter(
                 AIConversation.id == conversation_id,
                 AIConversation.user_id == self.user.id,
@@ -35,29 +38,64 @@ class AIMessageController(ScopedResourceController):
             "AI conversation",
         )
 
-        # 1. Save user's message
         user_message = AIMessage(
             conversation_id=conversation_id,
             role="user",
             message=message,
         )
-
         self.db.add(user_message)
         self.db.flush()
 
-        # 2. Send message to OpenAI
-        ai_service = AIService()
+        prior_messages = (
+            self.db.query(AIMessage)
+            .filter(
+                AIMessage.conversation_id == conversation_id,
+                AIMessage.id != user_message.id,
+            )
+            .order_by(AIMessage.created_at, AIMessage.id)
+            .all()
+        )
+        trip_context = ""
+        if conversation.trip is not None:
+            trip = conversation.trip
+            trip_context = (
+                f" The user is planning {trip.name} to "
+                f"{trip.destination.name}, from {trip.start_date} to "
+                f"{trip.end_date}, using {trip.currency}."
+            )
+        prompt_messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are TripOS, a helpful travel-planning assistant. "
+                    "Give practical, clear answers and ask a concise follow-up "
+                    "when important trip details are missing."
+                    f"{trip_context}"
+                ),
+            },
+            *[
+                {"role": item.role.value, "content": item.message}
+                for item in prior_messages
+            ],
+            {"role": "user", "content": message},
+        ]
 
-        response = ai_service.generate_response(message)
+        try:
+            response = AIService().generate_response(prompt_messages)
+        except HTTPException:
+            self.db.rollback()
+            raise
 
-        # 3. Save AI response
         assistant_message = AIMessage(
             conversation_id=conversation_id,
             role="assistant",
             message=response,
         )
-
         self.db.add(assistant_message)
         self.db.commit()
-
-        return assistant_message
+        self.db.refresh(user_message)
+        self.db.refresh(assistant_message)
+        return {
+            "user_message": user_message,
+            "assistant_message": assistant_message,
+        }

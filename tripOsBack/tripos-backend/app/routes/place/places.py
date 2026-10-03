@@ -8,4 +8,5 @@ router = create_resource_router(
     "places",
     create_schema=PlaceCreate,
     read_schema=PlaceRead,
+    public_read=True,
 )

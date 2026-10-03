@@ -8,4 +8,5 @@ router = create_scoped_router(
 	DestinationRead,
 	"destinations",
 	"destinations",
+	public_read=True,
 )

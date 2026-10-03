@@ -30,7 +30,7 @@ def test_create_and_list_saved_places(client, auth_headers, destination_id):
     assert [item["id"] for item in listed.json()] == [saved.json()["id"]]
 
 
-def test_cannot_save_another_users_place(client, auth_headers, destination_id):
+def test_can_save_another_users_public_place(client, auth_headers, destination_id):
     place = client.post(
         "/api/v1/places",
         headers=auth_headers,
@@ -61,4 +61,5 @@ def test_cannot_save_another_users_place(client, auth_headers, destination_id):
         headers=other_headers,
         json={"place_id": place.json()["id"]},
     )
-    assert saved.status_code == 404
+    assert saved.status_code == 201
+    assert saved.json()["place_id"] == place.json()["id"]

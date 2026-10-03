@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ExpenseCreate(BaseModel):
     trip_id: int
     budget_category_id: int
+    wallet_id: int | None = None
 
     description: str = Field(
         min_length=1,
@@ -32,6 +33,7 @@ class ExpenseCreate(BaseModel):
 
 class ExpenseUpdate(BaseModel):
     budget_category_id: int | None = None
+    wallet_id: int | None = None
 
     description: str | None = Field(
         default=None,

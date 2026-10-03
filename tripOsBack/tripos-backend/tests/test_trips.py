@@ -1,3 +1,52 @@
+def test_create_trip_with_uploaded_cover_image(
+    client, auth_headers, destination_id, monkeypatch, tmp_path
+):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "UPLOAD_DIR", tmp_path)
+    image_bytes = b"\x89PNG\r\n\x1a\ntrip-cover-content"
+
+    created = client.post(
+        "/api/v1/trips",
+        headers=auth_headers,
+        data={
+            "destination_id": str(destination_id),
+            "name": "Tokyo with cover",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-08",
+            "currency": "JPY",
+            "data": '{"travelers": 2}',
+        },
+        files={"cover_image": ("cover.png", image_bytes, "image/png")},
+    )
+
+    assert created.status_code == 201
+    trip = created.json()
+    assert trip["cover_image"] == f"/api/v1/trips/{trip['id']}/cover-image"
+
+    image_response = client.get(trip["cover_image"], headers=auth_headers)
+    assert image_response.status_code == 200
+    assert image_response.content == image_bytes
+
+
+def test_create_trip_rejects_cover_image_url(client, auth_headers, destination_id):
+    response = client.post(
+        "/api/v1/trips",
+        headers=auth_headers,
+        json={
+            "destination_id": destination_id,
+            "name": "Tokyo with remote cover",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-08",
+            "currency": "JPY",
+            "cover_image": "https://example.com/cover.jpg",
+        },
+    )
+
+    assert response.status_code == 422
+    assert "cover_image as a file" in response.json()["detail"]
+
+
 def test_create_and_list_trips(client, auth_headers, destination_id):
     created = client.post(
         "/api/v1/trips",

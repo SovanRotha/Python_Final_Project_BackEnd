@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
+    Integer,
     Text,
 )
 from sqlalchemy.orm import relationship
@@ -24,7 +25,7 @@ class AIMessage(Base):
     __tablename__ = "ai_messages"
 
     id = Column(
-        BigInteger,
+        BigInteger().with_variant(Integer, "sqlite"),
         primary_key=True,
         index=True
     )

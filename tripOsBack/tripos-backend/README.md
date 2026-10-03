@@ -68,9 +68,12 @@ API_V1_PREFIX=/api/v1
 DATABASE_URL=postgresql+psycopg://tripos_user:choose-a-local-password@localhost:5432/tripos_db
 JWT_SECRET_KEY=replace-with-a-long-random-secret
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
 ```
 
-The repository ignores `.env` so local credentials are not committed. If you want to create the database user with the sample credentials, run the SQL below in `psql`; otherwise use the username and password already configured in PostgreSQL:
+The repository ignores `.env` so local credentials are not committed. Set `OPENAI_API_KEY` on the API server to enable AI assistant replies; the key is never sent to the frontend. For OpenRouter, set `OPENAI_BASE_URL=https://openrouter.ai/api/v1`, use your OpenRouter API key for `OPENAI_API_KEY`, and set `OPENAI_MODEL` to a model slug supported by OpenRouter. Restart the API server after changing its environment. If you want to create the database user with the sample credentials, run the SQL below in `psql`; otherwise use the username and password already configured in PostgreSQL:
 
 ```sql
 CREATE USER tripos_user WITH PASSWORD 'change-me';
@@ -149,6 +152,12 @@ Both developers should use the same committed `Dockerfile`, `compose.yaml`, and 
 ## Authentication and API use
 
 Register an account using `POST /api/v1/auth/register` with `email`, `password` (at least 8 characters), and optional `full_name`. Then log in using `POST /api/v1/auth/login` with the email and password. The response contains an `access_token`.
+
+Destination and place catalogs can be browsed without an account using
+`GET /api/v1/destinations`, `GET /api/v1/destinations/{id}`,
+`GET /api/v1/places`, and `GET /api/v1/places/{id}`. All destinations and places
+are shared in this public catalog. Creating or deleting catalog entries, and
+using trip planning, saved places, or finance endpoints, still requires a token.
 
 Send the token on protected requests using this header:
 

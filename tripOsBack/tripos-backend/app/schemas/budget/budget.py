@@ -52,6 +52,8 @@ class BudgetUpdate(BaseModel):
 
 class BudgetRead(BudgetCreate):
     id: int
+    saved_amount: Decimal
+    spent_amount: Decimal
     created_at: datetime
     updated_at: datetime
 

@@ -3,6 +3,8 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.models.admin.audit_log import AdminAuditLog
+from app.core.config import settings
 from app.models.user.user import User
 
 
@@ -24,6 +26,20 @@ class ScopedResourceController:
     def validate_update(self, resource, fields: dict) -> None:
         pass
 
+    def _audit_admin_action(
+        self, action: str, resource_id: int | None
+    ) -> None:
+        if self.user.email.casefold() not in settings.admin_emails:
+            return
+        self.db.add(
+            AdminAuditLog(
+                actor_id=self.user.id,
+                action=action,
+                resource_type=self.resource_name.casefold(),
+                resource_id=resource_id,
+            )
+        )
+
     def query_owned(self):
         return self.db.query(self.model).filter(self.owner_filter())
 
@@ -43,6 +59,8 @@ class ScopedResourceController:
             values["user_id"] = self.user.id
         resource = self.model(**values)
         self.db.add(resource)
+        self.db.flush()
+        self._audit_admin_action(f"{self.resource_name.casefold()}_created", resource.id)
         self.db.commit()
         self.db.refresh(resource)
         return resource
@@ -58,10 +76,13 @@ class ScopedResourceController:
         self.validate_update(resource, fields)
         for name, value in fields.items():
             setattr(resource, name, value)
+        self._audit_admin_action(f"{self.resource_name.casefold()}_updated", resource.id)
         self.db.commit()
         self.db.refresh(resource)
         return resource
 
     def delete(self, resource_id: int) -> None:
-        self.db.delete(self.get(resource_id))
+        resource = self.get(resource_id)
+        self._audit_admin_action(f"{self.resource_name.casefold()}_deleted", resource.id)
+        self.db.delete(resource)
         self.db.commit()

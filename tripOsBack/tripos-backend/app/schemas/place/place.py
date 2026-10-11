@@ -55,6 +55,23 @@ class PlaceCreate(BaseModel):
     status: PlaceStatus = PlaceStatus.ACTIVE
 
 
+class PlaceUpdate(BaseModel):
+    destination_id: int | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    category: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = None
+    address: str | None = None
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    estimated_cost: Decimal | None = Field(default=None, ge=0)
+    opening_time: time | None = None
+    closing_time: time | None = None
+    best_time_to_visit: str | None = Field(default=None, max_length=100)
+    website: str | None = Field(default=None, max_length=500)
+    rating: Decimal | None = Field(default=None, ge=0, le=5)
+    status: PlaceStatus | None = None
+
+
 class PlaceRead(PlaceCreate):
     id: int
     created_at: datetime

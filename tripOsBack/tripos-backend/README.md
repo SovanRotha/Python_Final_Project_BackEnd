@@ -68,6 +68,7 @@ API_V1_PREFIX=/api/v1
 DATABASE_URL=postgresql+psycopg://tripos_user:choose-a-local-password@localhost:5432/tripos_db
 JWT_SECRET_KEY=replace-with-a-long-random-secret
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+ADMIN_EMAILS=admin@example.com
 OPENAI_API_KEY=your-openai-api-key
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
@@ -176,9 +177,10 @@ For example, after starting the server, use the Swagger UI at `/docs` to registe
 - Preparation and bookings: `/api/v1/packing`, `/api/v1/checklists`, `/api/v1/accommodations`, `/api/v1/transports`
 - Travel records: `/api/v1/documents`, `/api/v1/screenshots`, `/api/v1/reminders`, `/api/v1/notifications`, `/api/v1/memories`
 - AI request records: `/api/v1/ai/requests`
-- Admin utility: `/api/v1/admin/users/count`
+- Admin API: `/api/v1/admin`
+- User reports: `/api/v1/reports`
 
-The admin utility currently requires authentication but does not implement role-based admin authorization. Do not expose it as an admin-only feature until roles and permission checks are added. The AI endpoint stores request records; it is not yet connected to an AI provider. Document and screenshot resource endpoints currently store metadata; production file upload/download endpoints and storage policies still need to be implemented.
+Admin endpoints require an active account whose email is listed in the comma-separated `ADMIN_EMAILS` server setting. The `/api/v1/admin` routes provide dashboard statistics, user management, report review, settings information, and audit logs. Admins manage destinations and places through the existing `/api/v1/destinations` and `/api/v1/places` CRUD routes; regular users remain restricted to their own records. Reports and admin audit logs require the database migration to be applied. Destination publication status, bookings, and editable runtime settings are not represented by the current application schema. Admin audit entries record status changes and content updates without copying user content or secrets. The AI endpoint stores request records; it is not yet connected to an AI provider. Document and screenshot resource endpoints currently store metadata; production file upload/download endpoints and storage policies still need to be implemented.
 
 ## Tests
 
@@ -196,5 +198,5 @@ Tests override the configured database with in-memory SQLite and reset the table
 - Configure PostgreSQL credentials through deployment environment variables or a secrets manager.
 - Apply and verify Alembic migrations before starting application workers.
 - Use private, durable file storage instead of relying on the local `uploads/` directories.
-- Add role checks before treating admin routes as privileged.
+- Keep `ADMIN_EMAILS` limited to trusted operator accounts and protect its deployment configuration.
 - Configure HTTPS, CORS policy, logging, backups, and database connection/pool limits for the hosting environment.

@@ -67,7 +67,7 @@ class AIMessageController(ScopedResourceController):
             {
                 "role": "system",
                 "content": (
-                    "You are TripOS, a helpful travel-planning assistant. "
+                    "You are Komsan AI Assistent, a helpful travel-planning assistant. "
                     "Give practical, clear answers and ask a concise follow-up "
                     "when important trip details are missing."
                     f"{trip_context}"

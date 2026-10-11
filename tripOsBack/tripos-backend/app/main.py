@@ -85,6 +85,8 @@ for route_module in (
 ):
     app.include_router(route_module.router)
 
+app.include_router(admin.reports_router)
+
 
 @app.get("/health", tags=["health"])
 def health_check() -> dict[str, str]:

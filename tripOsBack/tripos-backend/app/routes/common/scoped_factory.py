@@ -16,17 +16,26 @@ def create_scoped_router(
     update_schema: type | None = None,
     public_read: bool = False,
     include_create: bool = True,
+    public_filter=None,
 ) -> APIRouter:
     router = APIRouter(prefix=f"/api/v1/{path}", tags=[tag])
 
     if public_read:
         @router.get("", response_model=list[read_schema])
         def list_resources(db: Session = Depends(get_db)):
-            return db.query(controller_type.model).all()
+            query = db.query(controller_type.model)
+            if public_filter is not None:
+                query = query.filter(public_filter)
+            return query.all()
 
         @router.get("/{resource_id}", response_model=read_schema)
         def get_resource(resource_id: int, db: Session = Depends(get_db)):
-            resource = db.get(controller_type.model, resource_id)
+            query = db.query(controller_type.model).filter(
+                controller_type.model.id == resource_id
+            )
+            if public_filter is not None:
+                query = query.filter(public_filter)
+            resource = query.first()
             if resource is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,

@@ -6,7 +6,11 @@ from app.controllers.admin.admin_controller import AdminController
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user.user import User
+from app.models.place.place import PlaceStatus
 from app.schemas.admin.admin import (
+    AdminDestinationCreate,
+    AdminDestinationStatusUpdate,
+    AdminDestinationUpdate,
     AdminAuditLogRead,
     AdminReportRead,
     AdminUserRead,
@@ -15,6 +19,8 @@ from app.schemas.admin.admin import (
     ReportReview,
     ReportStatus,
 )
+from app.schemas.destination.destination import DestinationRead, DestinationStatus
+from app.schemas.place.place import PlaceCreate, PlaceRead, PlaceUpdate
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 reports_router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
@@ -63,6 +69,136 @@ def update_user_status(
     return AdminController(db).set_user_status(actor, user_id, payload.status)
 
 
+@router.get("/destinations", response_model=dict)
+def list_destinations(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100),
+    destination_status: DestinationStatus | None = Query(default=None, alias="status"),
+    search: str | None = Query(default=None, max_length=255),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    result = AdminController(db).list_destinations(
+        page,
+        page_size,
+        destination_status.value if destination_status else None,
+        search,
+    )
+    result["items"] = [
+        DestinationRead.model_validate(destination) for destination in result["items"]
+    ]
+    return result
+
+
+@router.post(
+    "/destinations",
+    response_model=DestinationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_destination(
+    payload: AdminDestinationCreate,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
+):
+    fields = payload.model_dump()
+    fields["status"] = payload.status.value
+    return AdminController(db).create_destination(actor, fields)
+
+
+@router.get("/destinations/{destination_id}", response_model=DestinationRead)
+def get_destination(
+    destination_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    return AdminController(db).get_destination(destination_id)
+
+
+@router.patch("/destinations/{destination_id}", response_model=DestinationRead)
+def update_destination(
+    destination_id: int,
+    payload: AdminDestinationUpdate,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
+):
+    return AdminController(db).update_destination(
+        actor,
+        destination_id,
+        payload.model_dump(exclude_unset=True),
+    )
+
+
+@router.patch("/destinations/{destination_id}/status", response_model=DestinationRead)
+def update_destination_status(
+    destination_id: int,
+    payload: AdminDestinationStatusUpdate,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
+):
+    return AdminController(db).set_destination_status(
+        actor, destination_id, payload.status.value
+    )
+
+
+@router.get("/places", response_model=dict)
+def list_places(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100),
+    destination_id: int | None = Query(default=None, ge=1),
+    place_status: PlaceStatus | None = Query(default=None, alias="status"),
+    search: str | None = Query(default=None, max_length=255),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    result = AdminController(db).list_places(
+        page,
+        page_size,
+        destination_id,
+        place_status,
+        search,
+    )
+    result["items"] = [PlaceRead.model_validate(place) for place in result["items"]]
+    return result
+
+
+@router.post(
+    "/places",
+    response_model=PlaceRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_place(
+    payload: PlaceCreate,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
+):
+    fields = payload.model_dump()
+    fields["status"] = payload.status
+    return AdminController(db).create_place(actor, fields)
+
+
+@router.get("/places/{place_id}", response_model=PlaceRead)
+def get_place(
+    place_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    return AdminController(db).get_place(place_id)
+
+
+@router.patch("/places/{place_id}", response_model=PlaceRead)
+def update_place(
+    place_id: int,
+    payload: PlaceUpdate,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
+):
+    return AdminController(db).update_place(
+        actor,
+        place_id,
+        payload.model_dump(exclude_unset=True),
+    )
+
+
 @router.get("/reports", response_model=dict)
 def list_reports(
     page: int = Query(default=1, ge=1),
@@ -98,6 +234,14 @@ def read_admin_settings(_: User = Depends(require_admin)):
         "app_name": settings.APP_NAME,
         "admin_emails": sorted(settings.admin_emails),
     }
+
+
+@router.get("/ai/monitoring")
+def ai_monitoring(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    return AdminController(db).ai_monitoring()
 
 
 @router.get("/audit-logs", response_model=dict)

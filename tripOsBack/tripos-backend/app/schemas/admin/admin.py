@@ -3,17 +3,37 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.schemas.destination.destination import (
+    DestinationCreate,
+    DestinationStatus,
+    DestinationUpdate,
+)
+
+
 class AdminUserRead(BaseModel):
     id: int
     name: str
     email: EmailStr
     status: bool | None
+    is_admin: bool
     created_at: datetime
     trip_count: int
 
 
 class AdminUserStatusUpdate(BaseModel):
     status: bool
+
+
+class AdminDestinationCreate(DestinationCreate):
+    status: DestinationStatus = DestinationStatus.DRAFT
+
+
+class AdminDestinationUpdate(DestinationUpdate):
+    pass
+
+
+class AdminDestinationStatusUpdate(BaseModel):
+    status: DestinationStatus
 
 
 class ReportCreate(BaseModel):

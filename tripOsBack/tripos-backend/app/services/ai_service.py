@@ -14,6 +14,7 @@ class AIService:
                 detail="AI chat is not configured. Set OPENAI_API_KEY on the API server.",
             )
         self.api_key = settings.OPENAI_API_KEY
+        self.usage: dict[str, int] | None = None
 
     def generate_response(self, messages: list[dict[str, str]]) -> str:
         try:
@@ -71,6 +72,31 @@ class AIService:
             ) from error
 
         choices = payload.get("choices", []) if isinstance(payload, dict) else []
+        usage = payload.get("usage") if isinstance(payload, dict) else None
+        if isinstance(usage, dict):
+            input_tokens = usage.get("prompt_tokens", usage.get("input_tokens"))
+            output_tokens = usage.get(
+                "completion_tokens", usage.get("output_tokens")
+            )
+            valid_input_tokens = (
+                input_tokens
+                if isinstance(input_tokens, int)
+                and not isinstance(input_tokens, bool)
+                and input_tokens >= 0
+                else None
+            )
+            valid_output_tokens = (
+                output_tokens
+                if isinstance(output_tokens, int)
+                and not isinstance(output_tokens, bool)
+                and output_tokens >= 0
+                else None
+            )
+            if valid_input_tokens is not None or valid_output_tokens is not None:
+                self.usage = {
+                    "input_tokens": valid_input_tokens or 0,
+                    "output_tokens": valid_output_tokens or 0,
+                }
         content = (
             choices[0].get("message", {}).get("content")
             if choices and isinstance(choices[0], dict)

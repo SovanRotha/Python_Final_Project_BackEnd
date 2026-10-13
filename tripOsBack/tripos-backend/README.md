@@ -118,6 +118,25 @@ python -m alembic upgrade head
 python -m alembic downgrade -1
 ```
 
+## Admin API
+
+Admin endpoints use the normal bearer-token login flow. Add the registered
+admin's email to `ADMIN_EMAILS`; admin access is controlled by that
+environment-backed allowlist, not by database role changes.
+
+Available admin routes are under `/api/v1/admin`: dashboard, user search and
+suspension, destination and place management, report review, AI monitoring,
+settings, and audit logs. Admin destination creation defaults to `draft`;
+publish, unpublish (set status to `draft`), or archive a destination with
+`PATCH /api/v1/admin/destinations/{id}/status` and a `status` value of
+`published`, `draft`, or `archived`. Public destination browsing and the
+associated places exclude destinations that are not published.
+
+AI monitoring aggregates request outcomes, latency, and provider-reported
+token usage without exposing conversation contents or user identifiers.
+Estimated cost is reported as unavailable until provider/model pricing is
+configured. Apply the latest Alembic migration after updating the backend.
+
 Autogeneration is a starting point, not a substitute for reviewing the migration. Back up important databases before upgrades or downgrades. Test migrations against a disposable database before production.
 
 ## Run the API

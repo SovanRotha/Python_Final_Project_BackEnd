@@ -135,3 +135,79 @@ def test_allowlisted_admin_cannot_suspend_self(client, monkeypatch):
     )
 
     assert response.status_code == 409
+
+
+def test_admin_destination_lifecycle_and_place_management(client, monkeypatch):
+    monkeypatch.setattr(settings, "ADMIN_EMAILS", "admin@example.com")
+    admin_headers = register_and_login(client, "admin@example.com", "Admin")
+
+    destination = client.post(
+        "/api/v1/admin/destinations",
+        headers=admin_headers,
+        json={
+            "name": "Osaka",
+            "country": "Japan",
+            "country_code": "JP",
+        },
+    )
+    assert destination.status_code == 201, destination.text
+    destination_id = destination.json()["id"]
+    assert destination.json()["status"] == "draft"
+
+    public_destinations = client.get("/api/v1/destinations").json()
+    assert all(item["id"] != destination_id for item in public_destinations)
+
+    published = client.patch(
+        f"/api/v1/admin/destinations/{destination_id}/status",
+        headers=admin_headers,
+        json={"status": "published"},
+    )
+    assert published.status_code == 200
+    assert published.json()["status"] == "published"
+
+    place = client.post(
+        "/api/v1/admin/places",
+        headers=admin_headers,
+        json={
+            "destination_id": destination_id,
+            "name": "Osaka Castle",
+            "category": "landmark",
+        },
+    )
+    assert place.status_code == 201, place.text
+    assert any(
+        item["id"] == place.json()["id"]
+        for item in client.get("/api/v1/places").json()
+    )
+
+    unpublished = client.patch(
+        f"/api/v1/admin/destinations/{destination_id}/status",
+        headers=admin_headers,
+        json={"status": "draft"},
+    )
+    assert unpublished.status_code == 200
+    assert client.get(f"/api/v1/destinations/{destination_id}").status_code == 404
+    assert all(
+        item["id"] != place.json()["id"] for item in client.get("/api/v1/places").json()
+    )
+
+    monitoring = client.get(
+        "/api/v1/admin/ai/monitoring",
+        headers=admin_headers,
+    )
+    assert monitoring.status_code == 200
+    assert monitoring.json()["estimated_cost_available"] is False
+    assert monitoring.json()["estimated_cost"] is None
+
+    logs = client.get("/api/v1/admin/audit-logs", headers=admin_headers).json()
+    assert {item["action"] for item in logs["items"]} >= {
+        "destination_created",
+        "destination_status_updated",
+        "place_created",
+    }
+
+
+def test_admin_routes_reject_non_admins(client, auth_headers):
+    response = client.get("/api/v1/admin/destinations", headers=auth_headers)
+
+    assert response.status_code == 403

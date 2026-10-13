@@ -76,6 +76,13 @@ class Destination(Base):
         nullable=True
     )
 
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="published",
+        server_default="published",
+        nullable=False
+    )
+
     average_daily_cost: Mapped[Decimal | None] = mapped_column(
         DECIMAL(10, 2),
         nullable=True

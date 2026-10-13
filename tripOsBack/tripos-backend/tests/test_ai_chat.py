@@ -11,6 +11,23 @@ def test_ai_chat_saves_user_and_assistant_messages(
     auth_headers,
     monkeypatch,
 ):
+    monkeypatch.setattr(settings, "ADMIN_EMAILS", "admin@example.com")
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "admin@example.com",
+            "password": "secure-pass-123",
+            "name": "Admin",
+        },
+    )
+    admin_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin@example.com", "password": "secure-pass-123"},
+    )
+    admin_headers = {
+        "Authorization": f"Bearer {admin_login.json()['access_token']}"
+    }
+
     user = client.get("/api/v1/users/me", headers=auth_headers)
     assert user.status_code == 200
 
@@ -25,6 +42,8 @@ def test_ai_chat_saves_user_and_assistant_messages(
     assert conversation.status_code == 201, conversation.text
 
     class FakeAIService:
+        usage = {"input_tokens": 12, "output_tokens": 8}
+
         def generate_response(self, messages):
             assert messages[-1] == {
                 "role": "user",
@@ -57,6 +76,14 @@ def test_ai_chat_saves_user_and_assistant_messages(
     )
     assert stored_messages.status_code == 200
     assert len(stored_messages.json()) == 2
+    monitoring = client.get(
+        "/api/v1/admin/ai/monitoring",
+        headers=admin_headers,
+    )
+    assert monitoring.status_code == 200
+    assert monitoring.json()["requests"] == 1
+    assert monitoring.json()["succeeded"] == 1
+    assert monitoring.json()["tokens"] == {"input": 12, "output": 8}
 
 
 def test_ai_service_uses_configured_provider_base_url(monkeypatch):

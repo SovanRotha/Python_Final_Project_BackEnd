@@ -1,7 +1,14 @@
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class DestinationStatus(str, Enum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    ARCHIVED = "archived"
 
 
 class DestinationCreate(BaseModel):
@@ -65,6 +72,7 @@ class DestinationUpdate(BaseModel):
 
 class DestinationRead(DestinationCreate):
     id: int
+    status: DestinationStatus = DestinationStatus.PUBLISHED
     created_at: datetime
     updated_at: datetime
 

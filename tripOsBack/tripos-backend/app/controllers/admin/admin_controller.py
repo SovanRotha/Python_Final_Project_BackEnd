@@ -1,13 +1,14 @@
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
+from app.models.ai.ai import AIUsageEvent
 from app.models.admin.audit_log import AdminAuditLog
 from app.models.admin.report import Report
 from app.models.destination.destination import Destination
-from app.models.place.place import Place
+from app.models.place.place import Place, PlaceStatus
 from app.models.trip.trip import Trip
 from app.core.config import settings
 from app.models.user.user import User
@@ -45,9 +46,11 @@ class AdminController:
             "destinations": self.db.query(Destination).count(),
             "places": self.db.query(Place).count(),
             "trips": self.db.query(Trip).count(),
+            "reports": self.db.query(Report).count(),
             "open_reports": self.db.query(Report)
             .filter(Report.status == "open")
             .count(),
+            "ai_usage": self.db.query(AIUsageEvent).count(),
         }
         recent_activity = []
         for model, event_type in (
@@ -70,6 +73,18 @@ class AdminController:
                 .limit(5)
                 .all()
             )
+        recent_activity.extend(
+            {
+                "type": log.action,
+                "resource_type": log.resource_type,
+                "resource_id": log.resource_id,
+                "created_at": log.created_at,
+            }
+            for log in self.db.query(AdminAuditLog)
+            .order_by(AdminAuditLog.created_at.desc(), AdminAuditLog.id.desc())
+            .limit(5)
+            .all()
+        )
         recent_activity.sort(
             key=lambda event: (
                 event["created_at"].replace(tzinfo=timezone.utc).timestamp()
@@ -116,6 +131,7 @@ class AdminController:
                     "name": user.name,
                     "email": user.email,
                     "status": user.status,
+                    "is_admin": user.email.casefold() in settings.admin_emails,
                     "created_at": user.created_at,
                     "trip_count": trip_count,
                 }
@@ -135,6 +151,7 @@ class AdminController:
             "name": user.name,
             "email": user.email,
             "status": user.status,
+            "is_admin": user.email.casefold() in settings.admin_emails,
             "created_at": user.created_at,
             "trip_count": self.db.query(Trip).filter(Trip.user_id == user.id).count(),
         }
@@ -167,9 +184,154 @@ class AdminController:
             "name": user.name,
             "email": user.email,
             "status": user.status,
+            "is_admin": user.email.casefold() in settings.admin_emails,
             "created_at": user.created_at,
             "trip_count": trip_count,
         }
+
+    def list_destinations(
+        self,
+        page: int,
+        page_size: int,
+        destination_status: str | None,
+        search: str | None,
+    ) -> dict:
+        query = self.db.query(Destination)
+        if destination_status:
+            query = query.filter(Destination.status == destination_status)
+        if search:
+            pattern = f"%{search.strip()}%"
+            query = query.filter(
+                Destination.name.ilike(pattern) | Destination.country.ilike(pattern)
+            )
+        total = query.count()
+        items = (
+            query.order_by(Destination.created_at.desc(), Destination.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+    def create_destination(self, actor: User, fields: dict) -> Destination:
+        destination = Destination(user_id=actor.id, **fields)
+        self.db.add(destination)
+        self.db.flush()
+        self._log(
+            actor,
+            "destination_created",
+            "destination",
+            destination.id,
+            {"status": destination.status},
+        )
+        self.db.commit()
+        self.db.refresh(destination)
+        return destination
+
+    def get_destination(self, destination_id: int) -> Destination:
+        destination = self.db.get(Destination, destination_id)
+        if destination is None:
+            raise HTTPException(status_code=404, detail="Destination not found")
+        return destination
+
+    def update_destination(
+        self, actor: User, destination_id: int, fields: dict
+    ) -> Destination:
+        destination = self.get_destination(destination_id)
+        required = {"name", "country", "country_code"}
+        if any(name in fields and fields[name] is None for name in required):
+            raise HTTPException(
+                status_code=422,
+                detail="Destination name, country, and country_code cannot be null",
+            )
+        for name, value in fields.items():
+            setattr(destination, name, value)
+        self._log(actor, "destination_updated", "destination", destination.id)
+        self.db.commit()
+        self.db.refresh(destination)
+        return destination
+
+    def set_destination_status(
+        self, actor: User, destination_id: int, destination_status: str
+    ) -> Destination:
+        destination = self.get_destination(destination_id)
+        previous_status = destination.status
+        destination.status = destination_status
+        self._log(
+            actor,
+            "destination_status_updated",
+            "destination",
+            destination.id,
+            {"previous_status": previous_status, "status": destination_status},
+        )
+        self.db.commit()
+        self.db.refresh(destination)
+        return destination
+
+    def list_places(
+        self,
+        page: int,
+        page_size: int,
+        destination_id: int | None,
+        place_status: PlaceStatus | None,
+        search: str | None,
+    ) -> dict:
+        query = self.db.query(Place)
+        if destination_id is not None:
+            query = query.filter(Place.destination_id == destination_id)
+        if place_status:
+            query = query.filter(Place.status == place_status)
+        if search:
+            pattern = f"%{search.strip()}%"
+            query = query.filter(
+                Place.name.ilike(pattern) | Place.category.ilike(pattern)
+            )
+        total = query.count()
+        items = (
+            query.order_by(Place.created_at.desc(), Place.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+    def get_place(self, place_id: int) -> Place:
+        place = self.db.get(Place, place_id)
+        if place is None:
+            raise HTTPException(status_code=404, detail="Place not found")
+        return place
+
+    def create_place(self, actor: User, fields: dict) -> Place:
+        if self.db.get(Destination, fields["destination_id"]) is None:
+            raise HTTPException(status_code=404, detail="Destination not found")
+        place = Place(**fields)
+        self.db.add(place)
+        self.db.flush()
+        self._log(actor, "place_created", "place", place.id)
+        self.db.commit()
+        self.db.refresh(place)
+        return place
+
+    def update_place(self, actor: User, place_id: int, fields: dict) -> Place:
+        place = self.get_place(place_id)
+        if any(
+            name in fields and fields[name] is None for name in {"name", "category"}
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="Place name and category cannot be null",
+            )
+        destination_id = fields.get("destination_id")
+        if destination_id is not None and self.db.get(
+            Destination, destination_id
+        ) is None:
+            raise HTTPException(status_code=404, detail="Destination not found")
+        for name, value in fields.items():
+            setattr(place, name, value)
+        self._log(actor, "place_updated", "place", place.id)
+        self.db.commit()
+        self.db.refresh(place)
+        return place
 
     def create_report(self, user: User, fields: dict) -> Report:
         report = Report(user_id=user.id, **fields)
@@ -224,3 +386,57 @@ class AdminController:
             .all()
         )
         return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+    def ai_monitoring(self) -> dict:
+        total, failures, average_latency, input_tokens, output_tokens = (
+            self.db.query(
+                func.count(AIUsageEvent.id),
+                func.sum(case((AIUsageEvent.succeeded.is_(False), 1), else_=0)),
+                func.avg(AIUsageEvent.duration_ms),
+                func.coalesce(func.sum(AIUsageEvent.input_tokens), 0),
+                func.coalesce(func.sum(AIUsageEvent.output_tokens), 0),
+            ).one()
+        )
+        latest_event = (
+            self.db.query(AIUsageEvent)
+            .order_by(AIUsageEvent.created_at.desc(), AIUsageEvent.id.desc())
+            .first()
+        )
+        last_success = (
+            self.db.query(AIUsageEvent.created_at)
+            .filter(AIUsageEvent.succeeded.is_(True))
+            .order_by(AIUsageEvent.created_at.desc(), AIUsageEvent.id.desc())
+            .first()
+        )
+        errors_by_type = (
+            self.db.query(AIUsageEvent.error_type, func.count(AIUsageEvent.id))
+            .filter(AIUsageEvent.succeeded.is_(False))
+            .group_by(AIUsageEvent.error_type)
+            .all()
+        )
+        failures = failures or 0
+        return {
+            "requests": total,
+            "succeeded": total - failures,
+            "failed": failures,
+            "average_latency_ms": (
+                float(average_latency) if average_latency is not None else None
+            ),
+            "tokens": {
+                "input": input_tokens,
+                "output": output_tokens,
+            },
+            "estimated_cost": None,
+            "estimated_cost_available": False,
+            "errors_by_type": [
+                {"type": error_type or "unknown", "count": count}
+                for error_type, count in errors_by_type
+            ],
+            "service_health": {
+                "configured": bool(settings.OPENAI_API_KEY),
+                "last_request_succeeded": (
+                    latest_event.succeeded if latest_event is not None else None
+                ),
+                "last_success_at": last_success[0] if last_success else None,
+            },
+        }

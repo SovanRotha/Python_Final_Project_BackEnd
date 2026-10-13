@@ -7,6 +7,8 @@ from app.api.deps import get_current_user
 from app.models.user.user import User
 from app.schemas.place.place import PlaceCreate, PlaceRead, PlaceUpdate
 from app.routes.common.factory import create_resource_router
+from app.models.destination.destination import Destination
+from app.models.place.place import Place
 
 router = create_resource_router(
     PlaceController,
@@ -15,6 +17,7 @@ router = create_resource_router(
     create_schema=PlaceCreate,
     read_schema=PlaceRead,
     public_read=True,
+    public_filter=Place.destination.has(Destination.status == "published"),
 )
 
 

@@ -1,6 +1,9 @@
+from time import perf_counter
+
 from fastapi import HTTPException
 
 from app.controllers.common.scoped_resource_controller import ScopedResourceController
+from app.models.ai.ai import AIUsageEvent
 from app.models.ai.ai_conversation import AIConversation
 from app.models.ai.ai_message import AIMessage
 from app.services.ai_service import AIService
@@ -80,12 +83,36 @@ class AIMessageController(ScopedResourceController):
             {"role": "user", "content": message},
         ]
 
+        started_at = perf_counter()
+        service = None
         try:
-            response = AIService().generate_response(prompt_messages)
-        except HTTPException:
+            service = AIService()
+            response = service.generate_response(prompt_messages)
+        except HTTPException as error:
             self.db.rollback()
+            self.db.add(
+                AIUsageEvent(
+                    succeeded=False,
+                    duration_ms=round((perf_counter() - started_at) * 1000),
+                    error_type=type(error).__name__,
+                )
+            )
+            self.db.commit()
             raise
 
+        usage = getattr(service, "usage", None)
+        self.db.add(
+            AIUsageEvent(
+                succeeded=True,
+                duration_ms=round((perf_counter() - started_at) * 1000),
+                input_tokens=(
+                    usage.get("input_tokens") if isinstance(usage, dict) else None
+                ),
+                output_tokens=(
+                    usage.get("output_tokens") if isinstance(usage, dict) else None
+                ),
+            )
+        )
         assistant_message = AIMessage(
             conversation_id=conversation_id,
             role="assistant",

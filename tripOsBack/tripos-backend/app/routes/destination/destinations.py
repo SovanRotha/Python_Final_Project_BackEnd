@@ -5,6 +5,7 @@ from app.schemas.destination.destination import (
 	DestinationRead,
 	DestinationUpdate,
 )
+from app.models.destination.destination import Destination
 
 router = create_scoped_router(
 	DestinationController,
@@ -14,4 +15,5 @@ router = create_scoped_router(
 	"destinations",
 	update_schema=DestinationUpdate,
 	public_read=True,
+	public_filter=Destination.status == "published",
 )

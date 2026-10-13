@@ -1,7 +1,7 @@
 from app.models.accommodation.accommodation import Accommodation
 from app.models.admin.audit_log import AdminAuditLog
 from app.models.admin.report import Report
-from app.models.ai.ai import AIRequest
+from app.models.ai.ai import AIRequest, AIUsageEvent
 from app.models.ai.ai_conversation import AIConversation
 from app.models.ai.ai_extraction import AIExtraction
 from app.models.ai.ai_message import AIMessage
@@ -37,7 +37,7 @@ from app.models.wallet.wallet import Wallet
 from app.models.wallet.wallet_transaction import WalletTransaction
 
 __all__ = [
-    "Accommodation", "AdminAuditLog", "Report", "AIConversation", "AIExtraction", "AIMessage", "AIRequest",
+    "Accommodation", "AdminAuditLog", "Report", "AIConversation", "AIExtraction", "AIMessage", "AIRequest", "AIUsageEvent",
     "Budget", "BudgetCategory", "Checklist", "ChecklistItem", "Destination",
     "Document", "Expense", "ExpenseSplit", "Itinerary", "ItineraryDay",
     "ItineraryItem", "Memory", "MemoryPhoto", "Notification", "PackingItem",

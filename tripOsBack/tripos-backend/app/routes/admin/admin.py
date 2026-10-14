@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -5,6 +7,7 @@ from app.api.deps import get_current_user, require_admin
 from app.controllers.admin.admin_controller import AdminController
 from app.core.config import settings
 from app.core.database import get_db
+from app.models.trip.trip import TripStatus
 from app.models.user.user import User
 from app.models.place.place import PlaceStatus
 from app.schemas.admin.admin import (
@@ -13,6 +16,7 @@ from app.schemas.admin.admin import (
     AdminDestinationUpdate,
     AdminAuditLogRead,
     AdminReportRead,
+    AdminTripRead,
     AdminUserRead,
     AdminUserStatusUpdate,
     ReportCreate,
@@ -28,9 +32,12 @@ reports_router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
 @router.get("/dashboard")
 def dashboard(
-    db: Session = Depends(get_db), _: User = Depends(require_admin)
+    start_date: date | None = None,
+    end_date: date | None = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
-    return AdminController(db).dashboard()
+    return AdminController(db).dashboard(start_date, end_date)
 
 
 @router.get("/users/count")
@@ -159,6 +166,34 @@ def list_places(
     )
     result["items"] = [PlaceRead.model_validate(place) for place in result["items"]]
     return result
+
+
+@router.get("/trips", response_model=dict)
+def list_trips(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100),
+    user_id: int | None = Query(default=None, ge=1),
+    trip_status: TripStatus | None = Query(default=None, alias="status"),
+    search: str | None = Query(default=None, max_length=255),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    result = AdminController(db).list_trips(
+        page, page_size, user_id, trip_status, search
+    )
+    result["items"] = [
+        AdminTripRead.model_validate(trip) for trip in result["items"]
+    ]
+    return result
+
+
+@router.get("/trips/{trip_id}", response_model=AdminTripRead)
+def get_trip(
+    trip_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    return AdminController(db).get_trip(trip_id)
 
 
 @router.post(

@@ -8,6 +8,7 @@ from app.schemas.destination.destination import (
     DestinationStatus,
     DestinationUpdate,
 )
+from app.schemas.trip.trip import TripRead
 
 
 class AdminUserRead(BaseModel):
@@ -22,6 +23,19 @@ class AdminUserRead(BaseModel):
 
 class AdminUserStatusUpdate(BaseModel):
     status: bool
+
+
+class AdminTripOwnerRead(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    status: bool | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminTripRead(TripRead):
+    user: AdminTripOwnerRead
 
 
 class AdminDestinationCreate(DestinationCreate):

@@ -1,17 +1,18 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import case, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.ai.ai import AIUsageEvent
 from app.models.admin.audit_log import AdminAuditLog
 from app.models.admin.report import Report
 from app.models.destination.destination import Destination
 from app.models.place.place import Place, PlaceStatus
-from app.models.trip.trip import Trip
+from app.models.trip.trip import Trip, TripStatus
 from app.core.config import settings
 from app.models.user.user import User
+from app.schemas.admin.admin import ReportStatus
 
 
 class AdminController:
@@ -39,19 +40,64 @@ class AdminController:
     def count_users(self) -> int:
         return self.db.query(User).count()
 
-    def dashboard(self) -> dict:
+    def dashboard(
+        self, start_date: date | None = None, end_date: date | None = None
+    ) -> dict:
+        period_end = end_date or datetime.now(timezone.utc).date()
+        period_start = start_date or period_end - timedelta(days=29)
+        if period_start > period_end:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="start_date must be on or before end_date",
+            )
+        period_start_at = datetime.combine(
+            period_start, time.min, tzinfo=timezone.utc
+        )
+        period_end_at = datetime.combine(
+            period_end + timedelta(days=1), time.min, tzinfo=timezone.utc
+        )
         statistics = {
             "users": self.db.query(User).count(),
             "active_users": self.db.query(User).filter(User.status.is_(True)).count(),
+            "suspended_users": self.db.query(User)
+            .filter(User.status.is_(False))
+            .count(),
             "destinations": self.db.query(Destination).count(),
+            "published_destinations": self.db.query(Destination)
+            .filter(Destination.status == "published")
+            .count(),
             "places": self.db.query(Place).count(),
             "trips": self.db.query(Trip).count(),
+            "new_users": self.db.query(User)
+            .filter(
+                User.created_at >= period_start_at,
+                User.created_at < period_end_at,
+            )
+            .count(),
+            "new_trips": self.db.query(Trip)
+            .filter(
+                Trip.created_at >= period_start_at,
+                Trip.created_at < period_end_at,
+            )
+            .count(),
             "reports": self.db.query(Report).count(),
             "open_reports": self.db.query(Report)
             .filter(Report.status == "open")
             .count(),
+            "resolved_reports": self.db.query(Report)
+            .filter(Report.status == ReportStatus.RESOLVED.value)
+            .count(),
             "ai_usage": self.db.query(AIUsageEvent).count(),
         }
+        reports_by_status = dict(
+            self.db.query(Report.status, func.count(Report.id))
+            .filter(
+                Report.created_at >= period_start_at,
+                Report.created_at < period_end_at,
+            )
+            .group_by(Report.status)
+            .all()
+        )
         recent_activity = []
         for model, event_type in (
             (User, "user_registered"),
@@ -96,7 +142,12 @@ class AdminController:
             ),
             reverse=True,
         )
-        return {"statistics": statistics, "recent_activity": recent_activity[:10]}
+        return {
+            "period": {"start_date": period_start, "end_date": period_end},
+            "statistics": statistics,
+            "reports_by_status": reports_by_status,
+            "recent_activity": recent_activity[:10],
+        }
 
     def list_users(
         self,
@@ -295,6 +346,47 @@ class AdminController:
         )
         return {"items": items, "total": total, "page": page, "page_size": page_size}
 
+    def list_trips(
+        self,
+        page: int,
+        page_size: int,
+        user_id: int | None,
+        trip_status: TripStatus | None,
+        search: str | None,
+    ) -> dict:
+        query = self.db.query(Trip).join(User, Trip.user_id == User.id)
+        if user_id is not None:
+            query = query.filter(Trip.user_id == user_id)
+        if trip_status is not None:
+            query = query.filter(Trip.status == trip_status)
+        if search:
+            pattern = f"%{search.strip()}%"
+            query = query.filter(
+                Trip.name.ilike(pattern)
+                | User.name.ilike(pattern)
+                | User.email.ilike(pattern)
+            )
+        total = query.count()
+        items = (
+            query.options(joinedload(Trip.user))
+            .order_by(Trip.created_at.desc(), Trip.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+    def get_trip(self, trip_id: int) -> Trip:
+        trip = (
+            self.db.query(Trip)
+            .options(joinedload(Trip.user))
+            .filter(Trip.id == trip_id)
+            .first()
+        )
+        if trip is None:
+            raise HTTPException(status_code=404, detail="Trip not found")
+        return trip
+
     def get_place(self, place_id: int) -> Place:
         place = self.db.get(Place, place_id)
         if place is None:
@@ -358,10 +450,17 @@ class AdminController:
     def review_report(
         self, actor: User, report_id: int, report_status: str, resolution: str | None
     ) -> Report:
+        try:
+            validated_status = ReportStatus(report_status)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid report status",
+            ) from exc
         report = self.db.get(Report, report_id)
         if report is None:
             raise HTTPException(status_code=404, detail="Report not found")
-        report.status = report_status
+        report.status = validated_status.value
         report.resolution = resolution
         report.reviewed_by_id = actor.id
         report.reviewed_at = datetime.now(timezone.utc)
@@ -370,7 +469,7 @@ class AdminController:
             "report_reviewed",
             "report",
             report.id,
-            {"status": report_status},
+            {"status": validated_status.value},
         )
         self.db.commit()
         self.db.refresh(report)

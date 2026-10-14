@@ -114,6 +114,7 @@ def test_admin_management_and_report_workflow(client, monkeypatch):
     assert dashboard["statistics"]["destinations"] == 1
     assert dashboard["statistics"]["places"] == 1
     assert dashboard["statistics"]["open_reports"] == 0
+    assert dashboard["statistics"]["resolved_reports"] == 1
     logs = client.get("/api/v1/admin/audit-logs", headers=admin_headers).json()
     assert {item["action"] for item in logs["items"]} >= {
         "destination_updated",
@@ -135,6 +136,56 @@ def test_allowlisted_admin_cannot_suspend_self(client, monkeypatch):
     )
 
     assert response.status_code == 409
+
+
+def test_admin_trip_management_and_dashboard_period(
+    client, auth_headers, destination_id, monkeypatch
+):
+    monkeypatch.setattr(settings, "ADMIN_EMAILS", "admin@example.com")
+    admin_headers = register_and_login(client, "admin@example.com", "Admin")
+    trip = client.post(
+        "/api/v1/trips",
+        headers=auth_headers,
+        json={
+            "destination_id": destination_id,
+            "name": "Japan trip",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-08",
+            "currency": "JPY",
+        },
+    )
+    assert trip.status_code == 201
+
+    trips = client.get(
+        "/api/v1/admin/trips",
+        headers=admin_headers,
+        params={"user_id": 1, "status": "planning", "search": "Japan"},
+    )
+    assert trips.status_code == 200
+    assert trips.json()["total"] == 1
+    assert trips.json()["items"][0]["user"]["email"] == "traveler@example.com"
+    assert "hashed_password" not in trips.json()["items"][0]["user"]
+
+    detail = client.get(
+        f"/api/v1/admin/trips/{trip.json()['id']}", headers=admin_headers
+    )
+    assert detail.status_code == 200
+    assert detail.json()["name"] == "Japan trip"
+    assert client.get("/api/v1/admin/trips/999", headers=admin_headers).status_code == 404
+
+    dashboard = client.get(
+        "/api/v1/admin/dashboard",
+        headers=admin_headers,
+        params={"start_date": "2000-01-01", "end_date": "2999-01-01"},
+    )
+    assert dashboard.status_code == 200
+    assert dashboard.json()["statistics"]["new_users"] == 2
+    assert dashboard.json()["statistics"]["new_trips"] == 1
+    assert client.get(
+        "/api/v1/admin/dashboard",
+        headers=admin_headers,
+        params={"start_date": "2026-10-15", "end_date": "2026-10-14"},
+    ).status_code == 422
 
 
 def test_admin_destination_lifecycle_and_place_management(client, monkeypatch):
